@@ -6,6 +6,7 @@ use http::StatusCode;
 pub enum ErrorKind {
     Internal,
     Profile,
+    Request,
     ClientError { status: StatusCode, code: String },
     ServerError { status: StatusCode, code: String },
     ParseResponse,
@@ -30,8 +31,22 @@ impl DeltaSharingError {
         &self.kind
     }
 
+    pub fn is_not_found(&self) -> bool {
+        matches!(
+            self.kind,
+            ErrorKind::ClientError {
+                status: StatusCode::NOT_FOUND,
+                ..
+            }
+        )
+    }
+
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(ErrorKind::Internal, message.into())
+    }
+
+    pub fn request(message: impl Into<String>) -> Self {
+        Self::new(ErrorKind::Request, message.into())
     }
 
     pub fn profile(message: impl Into<String>) -> Self {
@@ -75,14 +90,9 @@ impl fmt::Display for DeltaSharingError {
             ErrorKind::Internal => todo!(),
             ErrorKind::Profile => todo!(),
             ErrorKind::ParseResponse => todo!(),
+            ErrorKind::Request => todo!(),
         }
     }
 }
 
 impl std::error::Error for DeltaSharingError {}
-
-impl<T: AsRef<str>> From<T> for DeltaSharingError {
-    fn from(message: T) -> Self {
-        Self::internal(message.as_ref())
-    }
-}

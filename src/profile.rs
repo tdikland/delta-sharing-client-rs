@@ -20,14 +20,13 @@ use std::{fmt::Formatter, fs::File, path::Path};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use reqwest::RequestBuilder;
 use serde::Deserialize;
 use url::Url;
 
-use crate::{Error, Result};
+use crate::{DeltaSharingError, Result};
 
 /// The structure of a Delta Sharing profile file.
-#[derive(Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProfileFile {
     share_credentials_version: u32,
@@ -61,35 +60,45 @@ impl Profile {
     /// ```
     pub fn try_from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path.as_ref()).map_err(|e| {
-            format!(
+            tracing::error!(err = ?e, "failed to open profile file");
+            DeltaSharingError::profile(format!(
                 "Failed to open profile file at {}: {}",
                 path.as_ref().display(),
                 e
-            )
+            ))
         })?;
         let profile_file = serde_json::from_reader::<_, ProfileFile>(file).map_err(|e| {
-            format!(
+            tracing::error!(err = ?e, "failed to parse profile file");
+            DeltaSharingError::profile(format!(
                 "Failed to parse profile file at {}: {}",
                 path.as_ref().display(),
                 e
-            )
+            ))
         })?;
+        tracing::debug!("succesfully loaded profile file");
 
         let version = profile_file.share_credentials_version;
-        let endpoint = profile_file
-            .endpoint
-            .parse::<Url>()
-            .map_err(|e| format!("Failed to parse endpoint URL in profile: {}", e))?;
+        let endpoint = profile_file.endpoint.parse::<Url>().map_err(|e| {
+            tracing::error!(err = ?e, endpoint = %profile_file.endpoint, "failed to parse endpoint");
+            DeltaSharingError::profile(format!("Failed to parse endpoint URL in profile: {}", e))
+        })?;
+
         if version == 1 {
             if let Some(token) = profile_file.bearer_token {
                 let profile_type =
                     ProfileType::new_bearer_token(token, profile_file.expiration_time);
                 Ok(Self::from_profile_type(version, endpoint, profile_type))
             } else {
-                Err("Bearer token is missing in profile file".into())
+                tracing::error!(file = ?profile_file, "could not parse profile file");
+                Err(DeltaSharingError::profile(
+                    "Bearer token is missing in profile file",
+                ))
             }
         } else {
-            Err(format!("Unsupported share credentials version: {}", version).into())
+            tracing::error!(version = version, file = ?profile_file, "unsupported share credentials version");
+            Err(DeltaSharingError::profile(format!(
+                "Unsupported share credentials version: {version}"
+            )))
         }
     }
 
@@ -348,8 +357,6 @@ impl std::fmt::Debug for BearerToken {
             .finish()
     }
 }
-
-
 
 #[async_trait]
 pub trait TokenProvider {

@@ -2,7 +2,7 @@ mod client;
 mod config;
 mod error;
 pub mod profile;
-mod request;
+pub mod request;
 mod response;
 
 pub use error::DeltaSharingError;

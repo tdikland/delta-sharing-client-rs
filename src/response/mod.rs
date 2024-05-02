@@ -82,27 +82,33 @@ impl GetShareResponse {
     }
 }
 
-pub struct TableVersionResponse {
+#[derive(Debug, Deserialize)]
+pub struct QueryTableVersionResponse {
     version: u64,
 }
 
-pub struct TableMetadataResponse {
+#[derive(Debug, Deserialize)]
+pub struct QueryTableMetadataResponse {
+    version: u64,
     protocol: TableAction,
     metadata: TableAction,
 }
 
-pub struct TableDataResponse {
+#[derive(Debug, Deserialize)]
+pub struct QueryTableDataResponse {
+    version: u64,
     protocol: TableAction,
     metadata: TableAction,
     files: Vec<TableAction>,
 }
 
-pub struct TableChangesResponse {
+#[derive(Debug, Deserialize)]
+pub struct QueryTableChangesResponse {
+    version: u64,
     protocol: TableAction,
     metadata: TableAction,
     files: Vec<TableAction>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
